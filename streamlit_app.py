@@ -5,8 +5,29 @@ import pandas as pd
 from PIL import Image
 from pymongo import MongoClient
 import streamlit as st
+import unicodedata
 st.set_page_config(page_title="Sentencias Automate",initial_sidebar_state="expanded")
 
+
+def generar_regex_tildes(palabra):
+    equivalencias = {
+        "a": "[aá]",
+        "e": "[eé]",
+        "i": "[ií]",
+        "o": "[oó]",
+        "u": "[uúü]",
+        "n": "[nñ]",
+        "A": "[AÁ]",
+        "E": "[EÉ]",
+        "I": "[IÍ]",
+        "O": "[OÓ]",
+        "U": "[UÚÜ]",
+        "N": "[NÑ]"
+    }
+
+    # Reemplazar cada carácter por su equivalencia con y sin tildes
+    regex = ''.join(equivalencias.get(c, c) for c in palabra)
+    return regex
 
 
 def ConexionSqlSentenciasDB():
@@ -38,7 +59,7 @@ def BusquedaProvidencia(palabra):
     coleccion = db["sentencias"]
     
     # Consulta a la base de datos
-    resultados = list(coleccion.find({"providencia": {"$regex": palabra, "$options": "i"}}))
+    resultados = list(coleccion.find({"providencia": {"$regex": palabra, "$options": "i"}},{'_id': 0}))
     
     # Convertir a DataFrame
     if resultados:
@@ -55,7 +76,7 @@ def BusquedaTipoProvidencia(palabra):
     coleccion = db["sentencias"]
     
     # Consulta a la base de datos
-    resultados = list(coleccion.find({"tipo": {"$regex": palabra, "$options": "i"}}))
+    resultados = list(coleccion.find({"tipo": {"$regex": palabra, "$options": "i"}},{'_id': 0}))
     
     # Convertir a DataFrame
     if resultados:
@@ -70,9 +91,11 @@ def BusquedaAnioProvidencia(palabra):
     client = MongoClient("mongodb+srv://jgonzalezl8:Sephiroth1@bigdata2024.zpsjf.mongodb.net/?retryWrites=true&w=majority&appName=BigData2024")
     db = client["BigData2023"]
     coleccion = db["sentencias"]
+
+
     
     # Consulta a la base de datos
-    resultados = list(coleccion.find({"anio": {"$regex": palabra, "$options": "i"}}))
+    resultados = list(coleccion.find({"anio": {"$regex": palabra, "$options": "i"}},{'_id': 0}))
     
     # Convertir a DataFrame
     if resultados:
@@ -87,9 +110,12 @@ def BusquedaTextoProvidencia(palabra):
     client = MongoClient("mongodb+srv://jgonzalezl8:Sephiroth1@bigdata2024.zpsjf.mongodb.net/?retryWrites=true&w=majority&appName=BigData2024")
     db = client["BigData2023"]
     coleccion = db["sentencias"]
-    
-    # Consulta a la base de datos
-    resultados = list(coleccion.find({"texto": {"$regex": palabra, "$options": "i"}}))
+
+    # Generar la expresión regular para la palabra
+    regex_palabra = generar_regex_tildes(palabra)
+
+    # Consultar en la colección
+    resultados = list(coleccion.find({"texto": {"$regex": regex_palabra, "$options": "i"}}, {'_id': 0}))
     
     # Convertir a DataFrame
     if resultados:
@@ -106,8 +132,8 @@ def BusquedaSimilitudProvidencia2(palabra):
     coleccion = db["Similitudes2"]
     
     # Consulta a la base de datos
-    resultados = list(coleccion.find({"providencia1": {"$regex": palabra, "$options": "i"}}))
-    resultados2 = list(coleccion.find({"providencia2": {"$regex": palabra, "$options": "i"}}))
+    resultados = list(coleccion.find({"providencia1": {"$regex": palabra, "$options": "i"}},{'_id': 0}))
+    resultados2 = list(coleccion.find({"providencia2": {"$regex": palabra, "$options": "i"}},{'_id': 0}))
     for i in resultados2:
         resultados.append(i)
 
@@ -126,8 +152,9 @@ def BusquedaSimilitudProvidencia(palabra):
     coleccion = db["Similitudes"]
     
     # Consulta a la base de datos
-    resultados = list(coleccion.find({"providencia1": {"$regex": palabra, "$options": "i"}}))
-    resultados2 = list(coleccion.find({"providencia2": {"$regex": palabra, "$options": "i"}}))
+   
+    resultados = list(coleccion.find({"providencia1": {"$regex": palabra, "$options": "i"}},{'_id': 0}))
+    resultados2 = list(coleccion.find({"providencia2": {"$regex": palabra, "$options": "i"}},{'_id': 0}))
     for i in resultados2:
         resultados.append(i)
 
@@ -137,6 +164,77 @@ def BusquedaSimilitudProvidencia(palabra):
     else:
         df = pd.DataFrame()  # DataFrame vacío si no hay resultados 
     return df
+
+def FuncionGraficarV5(df):
+    import networkx as nx
+    import matplotlib.pyplot as plt
+    
+    if not df.empty:
+        # Verificar y renombrar columnas
+        df.columns = ["providencia1", "providencia2", "similitud"]
+        
+        # Crear un grafo vacío
+        G = nx.Graph()
+        
+        # Agregar aristas con pesos
+        for index, row in df.iterrows():
+            origen = row["providencia1"]
+            destino = row["providencia2"]
+            similitud = row["similitud"]
+            
+            # Agregar relación si la similitud es mayor a 0.5
+            if similitud > 0.5:
+                G.add_edge(origen, destino, weight=similitud)
+        
+        # Manejar el caso de un solo registro
+        if len(df) == 1:
+            origen = df.iloc[0]["providencia1"]
+            destino = df.iloc[0]["providencia2"]
+            # Asegurar que ambos nodos existan
+            G.add_node(origen)
+            G.add_node(destino)
+        
+        # Obtener posiciones de los nodos
+        pos = nx.spring_layout(G)
+        
+        # Extraer pesos de las aristas
+        edges = G.edges(data=True)
+        weights = [d['weight'] for (u, v, d) in edges]
+        
+        # Normalizar pesos para controlar grosor
+        if weights:
+            min_weight = min(weights)
+            max_weight = max(weights)
+            normalized_weights = [(w - min_weight) / (max_weight - min_weight) * 2 + 0.5 for w in weights]  # Rango 0.5-2.5
+        else:
+            normalized_weights = []
+        
+        # Configurar visualización en pantalla completa
+        plt.figure(figsize=(16, 9))  # Tamaño personalizado para ocupar la pantalla completa
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)  # Quitar márgenes
+        
+        # Dibujar nodos
+        nx.draw_networkx_nodes(G, pos, node_size=700, node_color='lightblue')
+        
+        # Dibujar aristas con grosor ajustado
+        nx.draw_networkx_edges(G, pos, width=normalized_weights, edge_color='gray')
+        
+        # Dibujar etiquetas de nodos
+        nx.draw_networkx_labels(G, pos, font_size=12, font_color='black', font_weight='bold')
+        
+        # Dibujar etiquetas de aristas (pesos)
+        edge_labels = nx.get_edge_attributes(G, 'weight')
+        nx.draw_networkx_edge_labels(G, pos, edge_labels={(u, v): f"{d:.2f}" for (u, v), d in edge_labels.items()})
+        
+        # Mostrar el grafo
+        plt.title("Grafo de Similitudes", fontsize=16)
+        plt.axis('off')  # Ocultar ejes
+        plt.show()
+    else:
+        print("El DataFrame está vacío. Por favor, proporcione datos válidos.")
+
+
+
 
 def main(): 
 
@@ -150,7 +248,7 @@ def main():
     #similitudes2 = ConexionSqlSimilitudes2DB() #cargando todos los registros de similitudes
 
     
-    menu =["INICIO","SENTENCIAS(Busqueda por Nombre)","SENTENCIAS(Busqueda por Tipo)","SENTENCIAS(Busqueda por Año)","SENTENCIAS(Busqueda por Texto)","SIMILITUDES (BASE SUMINISTRADA)","SIMILITUDES (BASE PROPIA)"]
+    menu =["INICIO","SENTENCIAS(Busqueda por Nombre)","SENTENCIAS(Busqueda por Tipo)","SENTENCIAS(Busqueda por Año)","SENTENCIAS(Busqueda por Texto)","SIMILITUDES y NODOS (BASE SUMINISTRADA)"]
     st.sidebar.header("SetenceApp ⚖️", divider="gray")
     eleccion = st.sidebar.selectbox("MENU PRINCIPAL",menu)
     if eleccion =="INICIO":
@@ -209,18 +307,20 @@ def main():
             BusquedaTextoProvidencia(nombre_providencia)
         )
     
-    elif eleccion == "SIMILITUDES (BASE SUMINISTRADA)":
-        st.subheader("SIMILITUDES: Busqueda x Providencia (Base de datos JSON suministrada)")
+    elif eleccion == "SIMILITUDES y NODOS (BASE SUMINISTRADA)":
+        st.subheader("SIMILITUDES: Busqueda x Providencia (Base de datos JSON suministrada) (Visualizacion de Nodos)")
         nombre_providencia2 = st.text_input("Ingrese nombre de la providencia para mostrar sus similitudes", key = 3)
-        st.dataframe(
-            BusquedaSimilitudProvidencia(nombre_providencia2)
-        )
 
-    elif eleccion == "SIMILITUDES (BASE PROPIA)":
-        st.subheader("SIMILITUDES: Busqueda x Providencia (Base de datos calculada)")
-        nombre_providencia2 = st.text_input("Ingrese nombre de la providencia para mostrar sus similitudes", key = 4)
+        dfConsulted = BusquedaSimilitudProvidencia(nombre_providencia2)
         st.dataframe(
-            BusquedaSimilitudProvidencia2(nombre_providencia2)
+           dfConsulted
         )
+        st.subheader(
+            "VISUALIZACION DE NODOS: ", divider="gray"
+        )
+        st.pyplot(
+            FuncionGraficarV5(dfConsulted)
+        )
+        
 
 main()
