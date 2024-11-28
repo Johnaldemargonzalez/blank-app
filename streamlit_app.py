@@ -162,7 +162,7 @@ def FuncionGraficarV6(df):
     import matplotlib.pyplot as plt
 
     if not df.empty:
-        # Verificar y renombrar columnas
+        # Renombrar las columnas para que coincidan con los nombres utilizados
         df.columns = ["providencia1", "providencia2", "similitud"]
 
         # Eliminar duplicados
@@ -178,11 +178,9 @@ def FuncionGraficarV6(df):
             destino = df.iloc[0]["providencia2"]
             similitud = df.iloc[0]["similitud"]
 
-            # Agregar nodos
+            # Agregar nodos y la arista entre ellos
             G.add_node(origen)
             G.add_node(destino)
-
-            # Agregar siempre la arista entre los dos nodos
             G.add_edge(origen, destino, weight=similitud)
 
         # Manejar el caso de múltiples registros
@@ -208,13 +206,13 @@ def FuncionGraficarV6(df):
         edges = G.edges(data=True)
         weights = [d['weight'] for (u, v, d) in edges]
 
-        # Normalizar pesos para controlar grosor
+        # Normalizar pesos para controlar grosor de las aristas
         if weights:
             min_weight = min(weights)
             max_weight = max(weights)
             normalized_weights = [(w - min_weight) / (max_weight - min_weight) * 2 + 0.5 for w in weights]
         else:
-            normalized_weights = [10000]  # Asignar un grosor por defecto
+            normalized_weights = [1]  # Asignar un grosor por defecto
 
         # Configurar visualización en pantalla completa
         plt.figure(figsize=(16, 9))  # Tamaño personalizado para ocupar la pantalla completa
@@ -239,7 +237,6 @@ def FuncionGraficarV6(df):
         plt.show()
     else:
         print("El DataFrame está vacío. Por favor, proporcione datos válidos.")
-
 
 
 def main(): 
