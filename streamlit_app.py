@@ -157,7 +157,7 @@ def BusquedaSimilitudProvidencia(palabra):
         df = pd.DataFrame()  # DataFrame vacío si no hay resultados 
     return df
 
-def rV6(df):
+def FuncionGraficarV6(df):
     import networkx as nx
     import matplotlib.pyplot as plt
 
@@ -207,10 +207,15 @@ def rV6(df):
         weights = [d['weight'] for (u, v, d) in edges]
 
         # Normalizar pesos para controlar grosor de las aristas
-        normalized_weights = [1 if len(weights) == 0 else w for w in weights]
+        if weights:
+            min_weight = min(weights)
+            max_weight = max(weights)
+            normalized_weights = [(w - min_weight) / (max_weight - min_weight) * 2 + 0.5 for w in weights]
+        else:
+            normalized_weights = [1]  # Asignar un grosor por defecto
 
         # Configurar visualización en pantalla completa
-        plt.figure(figsize=(10, 6))  # Tamaño personalizado
+        plt.figure(figsize=(16, 9))  # Tamaño personalizado para ocupar la pantalla completa
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0)  # Quitar márgenes
 
         # Dibujar nodos
