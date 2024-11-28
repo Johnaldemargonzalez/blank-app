@@ -6,8 +6,8 @@ from PIL import Image
 from pymongo import MongoClient
 import streamlit as st
 import unicodedata
-st.set_page_config(page_title="Sentencias Automate",initial_sidebar_state="expanded")
 
+st.set_page_config(page_title="Sentencias Automate",initial_sidebar_state="expanded")
 
 def generar_regex_tildes(palabra):
     equivalencias = {
@@ -162,7 +162,7 @@ def FuncionGraficarV6(df):
     import matplotlib.pyplot as plt
 
     if not df.empty:
-        # Renombrar las columnas para que coincidan con los nombres utilizados
+        # Verificar y renombrar columnas
         df.columns = ["providencia1", "providencia2", "similitud"]
 
         # Eliminar duplicados
@@ -178,9 +178,11 @@ def FuncionGraficarV6(df):
             destino = df.iloc[0]["providencia2"]
             similitud = df.iloc[0]["similitud"]
 
-            # Agregar nodos y la arista entre ellos
+            # Agregar nodos
             G.add_node(origen)
             G.add_node(destino)
+
+            # Agregar siempre la arista entre los dos nodos
             G.add_edge(origen, destino, weight=similitud)
 
         # Manejar el caso de múltiples registros
@@ -206,13 +208,13 @@ def FuncionGraficarV6(df):
         edges = G.edges(data=True)
         weights = [d['weight'] for (u, v, d) in edges]
 
-        # Normalizar pesos para controlar grosor de las aristas
+        # Normalizar pesos para controlar grosor
         if weights:
             min_weight = min(weights)
             max_weight = max(weights)
             normalized_weights = [(w - min_weight) / (max_weight - min_weight) * 2 + 0.5 for w in weights]
         else:
-            normalized_weights = [1]  # Asignar un grosor por defecto
+            normalized_weights = [10000]  # Asignar un grosor por defecto
 
         # Configurar visualización en pantalla completa
         plt.figure(figsize=(16, 9))  # Tamaño personalizado para ocupar la pantalla completa
@@ -239,25 +241,16 @@ def FuncionGraficarV6(df):
         print("El DataFrame está vacío. Por favor, proporcione datos válidos.")
 
 
-def main(): 
 
-    #CONSULTANDO LA BASE DE DATOS DE SENTENCIA
-    #sentencias = ConexionSqlSentenciasDB() #cargando todos los registros de sentencia
-    
-    #CONSULTANDO LA BASE DE DATOS DE SIMILITUDES
-    #similitudes = ConexionSqlSimilitudesDB() #cargando todos los registros de similitudes
-    
+def main(): 
     
     menu =["INICIO","SENTENCIAS(Busqueda por Nombre)","SENTENCIAS(Busqueda por Tipo)","SENTENCIAS(Busqueda por Año)","SENTENCIAS(Busqueda por Texto)","SIMILITUDES y NODOS (BASE SUMINISTRADA)"]
     st.sidebar.header("SetenceApp ⚖️", divider="gray")
     eleccion = st.sidebar.selectbox("MENU PRINCIPAL",menu)
+
+    
     if eleccion =="INICIO":
         
-        #Instrucciones para centrar un elemento usando columnas
-        #col1, col2, col3 = st.columns([1, 1, 1])
-        #with col2:
-            #st.title("⚖️")
-
         st.title("SentenceApp - Sentencias a tu alcance.")
         st.write(
             " <- Nuestro Menú "
@@ -299,6 +292,8 @@ def main():
         st.dataframe(
             BusquedaAnioProvidencia(""+(str(opcionAnio))), width=800
         )
+
+
     elif eleccion == "SENTENCIAS(Busqueda por Texto)":
 
         st.subheader("SENTENCIAS: Busqueda por texto de providencia")
@@ -307,6 +302,7 @@ def main():
             BusquedaTextoProvidencia(nombre_providencia)
         )
     
+
     elif eleccion == "SIMILITUDES y NODOS (BASE SUMINISTRADA)":
 
         st.subheader("SIMILITUDES: Busqueda x Providencia (Base de datos JSON suministrada) (Visualizacion de Nodos)")
